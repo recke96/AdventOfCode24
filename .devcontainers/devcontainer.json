@@ -1,0 +1,6 @@
+{
+    "name": "gleam",
+    "features": {
+        "ghcr.io/devcontainers-extra/features/gleam:1": {}
+    }
+}
