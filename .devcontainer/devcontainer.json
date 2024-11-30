@@ -1,6 +1,6 @@
 {
     "name": "gleam",
-    "image": "docker.io/gleamlang/gleam",
+    "image": "ghcr.io/gleam-lang/gleam:v1.6.2-erlang",
     "customizations": {
         "vscode": {
             "extensions": [
