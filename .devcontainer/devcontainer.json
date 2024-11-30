@@ -2,5 +2,12 @@
     "name": "gleam",
     "features": {
         "ghcr.io/devcontainers-extra/features/gleam:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Gleam.gleam"
+            ]
+        }
     }
 }
