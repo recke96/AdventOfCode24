@@ -1,17 +1,22 @@
+import gleam/dict
+import gleam/function
 import gleam/int
 import gleam/list
 import gleam/pair
 import gleam/result
 import gleam/string
 
-pub fn pt_1(input: String) -> Int {
-  let #(l1, l2) =
-    string.split(input, on: "\n")
-    |> list.map(string.split(_, on: " "))
-    |> list.map(list.filter(_, not_empty))
-    |> list.filter_map(take_2)
-    |> list.filter_map(parse_pair)
-    |> list.unzip()
+pub fn parse(input: String) -> #(List(Int), List(Int)) {
+  string.split(input, on: "\n")
+  |> list.map(string.split(_, on: " "))
+  |> list.map(list.filter(_, not_empty))
+  |> list.filter_map(take_2)
+  |> list.filter_map(parse_pair)
+  |> list.unzip()
+}
+
+pub fn pt_1(input: #(List(Int), List(Int))) -> Int {
+  let #(l1, l2) = input
 
   list.zip(list.sort(l1, by: int.compare), list.sort(l2, by: int.compare))
   |> list.fold(0, fn(dist, p) {
@@ -19,8 +24,19 @@ pub fn pt_1(input: String) -> Int {
   })
 }
 
-pub fn pt_2(input: String) -> Int {
-  todo as "part 2 not implemented"
+pub fn pt_2(input: #(List(Int), List(Int))) -> Int {
+  let freqs =
+    pair.second(input)
+    |> list.group(function.identity)
+    |> dict.map_values(fn(_, v) { list.length(v) })
+
+  pair.first(input)
+  |> list.map(fn(v) {
+    dict.get(freqs, v)
+    |> result.unwrap(0)
+    |> int.multiply(v)
+  })
+  |> list.fold(0, int.add)
 }
 
 fn not_empty(value: String) -> Bool {
