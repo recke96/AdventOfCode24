@@ -15,10 +15,8 @@ pub fn parse(input: String) -> #(List(Int), List(Int)) {
 }
 
 pub fn pt_1(input: #(List(Int), List(Int))) -> Int {
-  let #(l1, l2) = input
-
-  let sorted_1 = list.sort(l1, by: int.compare)
-  let sorted_2 = list.sort(l2, by: int.compare)
+  let sorted_1 = list.sort(input.0, by: int.compare)
+  let sorted_2 = list.sort(input.1, by: int.compare)
 
   list.map2(sorted_1, sorted_2, int.subtract)
   |> list.map(int.absolute_value)
@@ -26,11 +24,9 @@ pub fn pt_1(input: #(List(Int), List(Int))) -> Int {
 }
 
 pub fn pt_2(input: #(List(Int), List(Int))) -> Int {
-  let #(l1, l2) = input
+  let freqs = list.fold(input.1, dict.new(), accumulate_frequencies)
 
-  let freqs = list.fold(l2, dict.new(), accumulate_frequencies)
-
-  list.map(l1, similarity_score(_, freqs))
+  list.map(input.0, similarity_score(_, freqs))
   |> list.fold(0, int.add)
 }
 
@@ -57,10 +53,8 @@ fn as_pair(elems: List(elem)) -> Result(#(elem, elem), Nil) {
 }
 
 fn parse_pair(p: #(String, String)) -> Result(#(Int, Int), Nil) {
-  let #(a_string, b_string) = p
-
-  use a <- result.try(int.parse(a_string))
-  use b <- result.try(int.parse(b_string))
+  use a <- result.try(int.parse(p.0))
+  use b <- result.try(int.parse(p.1))
 
   Ok(#(a, b))
 }
