@@ -2,3 +2,6 @@
 *.ez
 /build
 erl_crash.dump
+
+# Don't check in inputs
+/input
