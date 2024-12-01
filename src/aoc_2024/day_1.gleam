@@ -1,7 +1,7 @@
 import gleam/dict
-import gleam/function
 import gleam/int
 import gleam/list
+import gleam/option
 import gleam/result
 import gleam/string
 
@@ -28,9 +28,7 @@ pub fn pt_1(input: #(List(Int), List(Int))) -> Int {
 pub fn pt_2(input: #(List(Int), List(Int))) -> Int {
   let #(l1, l2) = input
 
-  let freqs =
-    list.group(l2, function.identity)
-    |> dict.map_values(fn(_, v) { list.length(v) })
+  let freqs = list.fold(l2, dict.new(), accumulate_frequencies)
 
   list.map(l1, similarity_score(_, freqs))
   |> list.fold(0, int.add)
@@ -38,6 +36,17 @@ pub fn pt_2(input: #(List(Int), List(Int))) -> Int {
 
 fn not_empty(value: String) -> Bool {
   !string.is_empty(value)
+}
+
+fn accumulate_frequencies(
+  frequencies: dict.Dict(Int, Int),
+  value: Int,
+) -> dict.Dict(Int, Int) {
+  dict.upsert(frequencies, value, increment)
+}
+
+fn increment(x: option.Option(Int)) -> Int {
+  option.map(x, int.add(_, 1)) |> option.unwrap(1)
 }
 
 fn as_pair(elems: List(elem)) -> Result(#(elem, elem), Nil) {
