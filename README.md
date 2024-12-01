@@ -1,24 +1,12 @@
-# aoc_25
+# Solutions for the Advent of Code 2024
 
-[![Package Version](https://img.shields.io/hexpm/v/aoc_25)](https://hex.pm/packages/aoc_25)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/aoc_25/)
+This repository contains my solutions for the [Advent of Code 2024](https://adventofcode.com/2024) written in [gleam](https://gleam.run/).
 
-```sh
-gleam add aoc_25@1
-```
-```gleam
-import aoc_25
+## Run
 
-pub fn main() {
-  // TODO: An example of the project in use
-}
-```
-
-Further documentation can be found at <https://hexdocs.pm/aoc_25>.
-
-## Development
+Make sure to have gleam and erlang installed or use a devcontainer.
+The project uses [gladvent](https://github.com/TanklesXL/gladvent) as runner.
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run run $DAY
 ```
