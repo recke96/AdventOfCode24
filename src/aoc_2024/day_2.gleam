@@ -1,77 +1,77 @@
 import gleam/int
 import gleam/list
-import gleam/result
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleam/yielder
 
-pub fn parse(input: String) -> List(List(Int)) {
+pub type Report {
+  Report(levels: List(Int))
+}
+
+pub fn parse(input: String) -> List(Report) {
   string.split(input, on: "\n")
   |> yielder.from_list()
   |> yielder.map(string.split(_, on: " "))
   |> yielder.map(list.filter_map(_, int.parse))
+  |> yielder.map(Report)
   |> yielder.to_list()
 }
 
-pub fn pt_1(input: List(List(Int))) {
+pub fn pt_1(input: List(Report)) {
   yielder.from_list(input)
-  |> yielder.map(report_safety)
-  |> yielder.filter(is_safe)
+  |> yielder.filter(is_safe_strict)
   |> yielder.length()
 }
 
-pub fn pt_2(input: List(List(Int))) {
+pub fn pt_2(input: List(Report)) {
   yielder.from_list(input)
-  |> yielder.map(report_safety_damped)
-  |> yielder.filter(is_safe)
+  |> yielder.filter(is_safe_damped)
   |> yielder.length()
 }
 
-type LevelChange {
-  Undetermined
-  Increasing
-  Decreasing
+type Assessment {
+  Assessment(previous: Option(Int), increased: Int, decreased: Int, safe: Bool)
 }
 
-type Safety {
-  Unknown
-  Safe(LevelChange, Int)
-  Unsafe
-}
-
-fn is_safe(report: Safety) -> Bool {
-  case report {
-    Safe(_, _) -> True
-    _ -> False
-  }
-}
-
-fn report_safety(report: List(Int)) -> Safety {
-  list.fold_until(report, Unknown, fn(safety, level) {
-    case safety {
-      Unknown -> list.Continue(Safe(Undetermined, level))
-      Unsafe -> list.Stop(Unsafe)
-      Safe(change, previous) ->
-        case change, { previous - level } {
-          Undetermined, -1 | Undetermined, -2 | Undetermined, -3 ->
-            list.Continue(Safe(Decreasing, level))
-          Undetermined, 1 | Undetermined, 2 | Undetermined, 3 ->
-            list.Continue(Safe(Increasing, level))
-          Increasing, 1 | Increasing, 2 | Increasing, 3 ->
-            list.Continue(Safe(Increasing, level))
-          Decreasing, -1 | Decreasing, -2 | Decreasing, -3 ->
-            list.Continue(Safe(Decreasing, level))
-          _, _ -> list.Stop(Unsafe)
+fn is_safe_strict(report: Report) -> Bool {
+  let assessment =
+    list.fold_until(
+      report.levels,
+      Assessment(None, 0, 0, True),
+      fn(assessment, lvl) {
+        case { option.map(assessment.previous, int.subtract(lvl, _)) } {
+          None -> list.Continue(Assessment(..assessment, previous: Some(lvl)))
+          Some(1) | Some(2) | Some(3) if assessment.decreased <= 0 ->
+            list.Continue(
+              Assessment(
+                ..assessment,
+                previous: Some(lvl),
+                increased: assessment.increased + 1,
+              ),
+            )
+          Some(-1) | Some(-2) | Some(-3) if assessment.increased <= 0 ->
+            list.Continue(
+              Assessment(
+                ..assessment,
+                previous: Some(lvl),
+                decreased: assessment.decreased + 1,
+              ),
+            )
+          _ ->
+            list.Stop(
+              Assessment(..assessment, previous: Some(lvl), safe: False),
+            )
         }
-    }
-  })
+      },
+    )
+  assessment.safe
 }
 
-fn report_safety_damped(report: List(Int)) -> Safety {
-  yield_with_one_dropped(report)
-  |> yielder.prepend(report)
-  |> yielder.map(report_safety)
-  |> yielder.find(is_safe)
-  |> result.unwrap(Unsafe)
+fn is_safe_damped(report: Report) -> Bool {
+  yield_with_one_dropped(report.levels)
+  |> yielder.prepend(report.levels)
+  |> yielder.map(Report)
+  |> yielder.any(is_safe_strict)
 }
 
 fn yield_with_one_dropped(over l: List(elem)) -> yielder.Yielder(List(elem)) {
