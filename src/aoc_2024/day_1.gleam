@@ -13,7 +13,8 @@ pub fn parse(input: String) -> #(List(Int), List(Int)) {
   |> yielder.map(list.filter(_, not_empty))
   |> yielder.filter_map(as_pair)
   |> yielder.filter_map(parse_pair)
-  |> unzip_to_lists()
+  |> yielder.to_list()
+  |> list.unzip()
 }
 
 pub fn pt_1(input: #(List(Int), List(Int))) -> Int {
@@ -66,13 +67,4 @@ fn similarity_score(value: Int, frequencies: dict.Dict(Int, Int)) -> Int {
   dict.get(frequencies, value)
   |> result.map(int.multiply(_, value))
   |> result.unwrap(0)
-}
-
-fn unzip_to_lists(input: yielder.Yielder(#(a, b))) -> #(List(a), List(b)) {
-  let #(l1, l2) =
-    yielder.fold(input, #([], []), fn(acc, elem) {
-      #([elem.0, ..{ acc.0 }], [elem.1, ..{ acc.1 }])
-    })
-
-  #(list.reverse(l1), list.reverse(l2))
 }
