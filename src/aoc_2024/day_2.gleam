@@ -73,11 +73,14 @@ fn yield_with_one_dropped(over l: List(elem)) -> yielder.Yielder(List(elem)) {
 }
 
 fn remove_idx(from list: List(elem), index to_remove: Int) -> List(elem) {
-  list.index_map(list, fn(elem, idx) {
+  yielder.from_list(list)
+  |> yielder.index()
+  |> yielder.filter_map(fn(indexed) {
+    let #(elem, idx) = indexed
     case idx != to_remove {
       True -> Ok(elem)
       False -> Error(Nil)
     }
   })
-  |> list.filter_map(function.identity)
+  |> yielder.to_list()
 }
