@@ -1,4 +1,5 @@
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -29,42 +30,32 @@ pub fn pt_2(input: List(Report)) {
   |> yielder.length()
 }
 
-type Assessment {
-  Assessment(previous: Option(Int), increased: Int, decreased: Int, safe: Bool)
+type Status {
+  Starting
+  Started(previous: Int)
+  Increasing(previous: Int)
+  Decreasing(previous: Int)
+  Unsafe
 }
 
 fn is_safe_strict(report: Report) -> Bool {
   let assessment =
-    list.fold_until(
-      report.levels,
-      Assessment(None, 0, 0, True),
-      fn(assessment, lvl) {
-        case { option.map(assessment.previous, int.subtract(lvl, _)) } {
-          None -> list.Continue(Assessment(..assessment, previous: Some(lvl)))
-          Some(1) | Some(2) | Some(3) if assessment.decreased <= 0 ->
-            list.Continue(
-              Assessment(
-                ..assessment,
-                previous: Some(lvl),
-                increased: assessment.increased + 1,
-              ),
-            )
-          Some(-1) | Some(-2) | Some(-3) if assessment.increased <= 0 ->
-            list.Continue(
-              Assessment(
-                ..assessment,
-                previous: Some(lvl),
-                decreased: assessment.decreased + 1,
-              ),
-            )
-          _ ->
-            list.Stop(
-              Assessment(..assessment, previous: Some(lvl), safe: False),
-            )
-        }
-      },
-    )
-  assessment.safe
+    list.fold_until(report.levels, Starting, fn(assessment, current) {
+      case assessment {
+        Starting -> list.Continue(Started(current))
+        Started(prev) if current > prev && current - prev <= 3 ->
+          list.Continue(Increasing(current))
+        Started(prev) if current < prev && prev - current <= 3 ->
+          list.Continue(Decreasing(current))
+        Increasing(prev) if current > prev && current - prev <= 3 ->
+          list.Continue(Increasing(current))
+        Decreasing(prev) if current < prev && prev - current <= 3 ->
+          list.Continue(Decreasing(current))
+        _ -> list.Stop(Unsafe)
+      }
+    })
+
+  assessment != Unsafe
 }
 
 fn is_safe_damped(report: Report) -> Bool {
@@ -76,7 +67,7 @@ fn is_safe_damped(report: Report) -> Bool {
 
 fn yield_with_one_dropped(over l: List(elem)) -> yielder.Yielder(List(elem)) {
   let len = list.length(l)
-  yielder.unfold(1, fn(idx) {
+  yielder.unfold(0, fn(idx) {
     case idx < len {
       True -> yielder.Next(remove_idx(l, idx), idx + 1)
       False -> yielder.Done
