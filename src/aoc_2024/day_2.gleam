@@ -1,3 +1,4 @@
+import gleam/function
 import gleam/int
 import gleam/list
 import gleam/string
@@ -72,13 +73,11 @@ fn yield_with_one_dropped(over l: List(elem)) -> yielder.Yielder(List(elem)) {
 }
 
 fn remove_idx(from list: List(elem), index to_remove: Int) -> List(elem) {
-  let list_without =
-    list.index_fold(list, list.new(), fn(acc, e, idx) {
-      case idx == to_remove {
-        False -> [e, ..acc]
-        True -> acc
-      }
-    })
-
-  list.reverse(list_without)
+  list.index_map(list, fn(elem, idx) {
+    case idx != to_remove {
+      True -> Ok(elem)
+      False -> Error(Nil)
+    }
+  })
+  |> list.filter_map(function.identity)
 }
