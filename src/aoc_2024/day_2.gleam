@@ -69,8 +69,8 @@ fn is_safe_strict(report: Report) -> Bool {
 
 fn is_safe_damped(report: Report) -> Bool {
   yield_with_one_dropped(report.levels)
-  |> yielder.prepend(report.levels)
   |> yielder.map(Report)
+  |> yielder.prepend(report)
   |> yielder.any(is_safe_strict)
 }
 
