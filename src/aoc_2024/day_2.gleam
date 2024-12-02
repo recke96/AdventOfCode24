@@ -41,14 +41,12 @@ fn is_safe_strict(report: Report) -> Bool {
     list.fold_until(report.levels, Starting, fn(assessment, current) {
       case assessment {
         Starting -> list.Continue(Started(current))
-        Started(prev) if current > prev && current - prev <= 3 ->
-          list.Continue(Increasing(current))
-        Started(prev) if current < prev && prev - current <= 3 ->
-          list.Continue(Decreasing(current))
-        Increasing(prev) if current > prev && current - prev <= 3 ->
-          list.Continue(Increasing(current))
-        Decreasing(prev) if current < prev && prev - current <= 3 ->
-          list.Continue(Decreasing(current))
+        Started(prev) | Increasing(prev)
+          if current > prev && current - prev <= 3
+        -> list.Continue(Increasing(current))
+        Started(prev) | Decreasing(prev)
+          if current < prev && prev - current <= 3
+        -> list.Continue(Decreasing(current))
         _ -> list.Stop(Unsafe)
       }
     })
