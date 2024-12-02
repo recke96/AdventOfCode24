@@ -76,7 +76,7 @@ fn is_safe_damped(report: Report) -> Bool {
 
 fn yield_with_one_dropped(over l: List(elem)) -> yielder.Yielder(List(elem)) {
   let len = list.length(l)
-  yielder.unfold(0, fn(idx) {
+  yielder.unfold(1, fn(idx) {
     case idx < len {
       True -> yielder.Next(remove_idx(l, idx), idx + 1)
       False -> yielder.Done
