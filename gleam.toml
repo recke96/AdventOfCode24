@@ -9,3 +9,6 @@ gleam_yielder = ">= 1.1.0 and < 2.0.0"
 [gladvent.2024.1]
 pt_1 = 2192892
 pt_2 = 22962826
+
+[gladvent.2024.2]
+pt_1 = 314
