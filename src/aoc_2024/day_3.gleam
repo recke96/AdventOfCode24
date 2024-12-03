@@ -1,54 +1,82 @@
 import gleam/int
+import gleam/list
 import gleam/option
 import gleam/regexp
 import gleam/result
 import gleam/yielder
 
-pub fn pt_1(input: String) {
-  mul_regex()
+pub fn parse(input: String) -> List(Instruction) {
+  instruction_regex()
   |> regexp.scan(input)
   |> yielder.from_list()
   |> yielder.filter_map(to_instruction)
-  |> yielder.map(apply_instruction)
-  |> yielder.fold(0, int.add)
+  |> yielder.to_list()
 }
 
-pub fn pt_2(input: String) {
-  todo as "part 2 not implemented"
+pub fn pt_1(input: List(Instruction)) {
+  let s =
+    yielder.from_list(input)
+    |> yielder.filter(fn(i) {
+      case i {
+        Mul(_, _) -> True
+        _ -> False
+      }
+    })
+    |> yielder.fold(Enabled(0), apply_instruction)
+
+  s.sum
 }
 
-fn mul_regex() -> regexp.Regexp {
+pub fn pt_2(input: List(Instruction)) {
+  let s = list.fold(input, Enabled(0), apply_instruction)
+  s.sum
+}
+
+fn instruction_regex() -> regexp.Regexp {
   let assert Ok(regexp) =
     regexp.compile(
-      "mul\\((\\d{1,3}),(\\d{1,3})\\)",
+      "(mul)\\((\\d{1,3}),(\\d{1,3})\\)|(do)\\(\\)|(don't)\\(\\)",
       regexp.Options(False, True),
     )
   regexp
 }
 
-type Instruction {
+pub type Instruction {
   Mul(Int, Int)
+  Do
+  Dont
 }
 
 fn to_instruction(match: regexp.Match) -> Result(Instruction, Nil) {
-  case match.submatches {
-    [a, b] -> new_mul(a, b)
+  let non_empty_matches =
+    match.submatches
+    |> list.filter_map(option.to_result(_, Nil))
+
+  case non_empty_matches {
+    ["mul", a, b] -> new_mul(a, b)
+    ["do"] -> Ok(Do)
+    ["don't"] -> Ok(Dont)
     _ -> Error(Nil)
   }
 }
 
-fn apply_instruction(instruction: Instruction) -> Int {
-  case instruction {
-    Mul(x, y) -> x * y
+type State {
+  Enabled(sum: Int)
+  Disabled(sum: Int)
+}
+
+fn apply_instruction(state: State, instruction: Instruction) -> State {
+  case state, instruction {
+    Enabled(acc), Mul(x, y) -> Enabled(acc + { x * y })
+    Enabled(acc), Dont -> Disabled(acc)
+    Disabled(acc), Do -> Enabled(acc)
+    _, _ -> state
   }
 }
 
-fn new_mul(
-  a: option.Option(String),
-  b: option.Option(String),
-) -> Result(Instruction, Nil) {
-  use x <- result.try(option.to_result(a, Nil) |> result.try(int.parse))
-  use y <- result.try(option.to_result(b, Nil) |> result.try(int.parse))
+fn new_mul(a: String, b: String) -> Result(Instruction, Nil) {
+  use x <- result.try(int.parse(a))
+  use y <- result.try(int.parse(b))
 
   Ok(Mul(x, y))
 }
