@@ -5,6 +5,7 @@ version = "1.0.0"
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
 gladvent = ">= 2.0.2 and < 3.0.0"
 gleam_yielder = ">= 1.1.0 and < 2.0.0"
+gleam_regexp = ">= 1.0.0 and < 2.0.0"
 
 [gladvent.2024.1]
 pt_1 = 2192892
@@ -13,3 +14,6 @@ pt_2 = 22962826
 [gladvent.2024.2]
 pt_1 = 314
 pt_2 = 373
+
+[gladvent.2024.3]
+pt_1 = 155955228
