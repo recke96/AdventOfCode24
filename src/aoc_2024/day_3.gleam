@@ -8,9 +8,7 @@ import gleam/yielder
 pub fn parse(input: String) -> List(Instruction) {
   instruction_regex()
   |> regexp.scan(input)
-  |> yielder.from_list()
-  |> yielder.filter_map(to_instruction)
-  |> yielder.to_list()
+  |> list.filter_map(to_instruction)
 }
 
 pub fn pt_1(input: List(Instruction)) {
