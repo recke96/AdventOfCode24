@@ -1,11 +1,8 @@
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/pair
-import gleam/result
 import gleam/string
-import gleam/yielder
 
 pub fn pt_1(input: String) -> Int {
   let rows = rows(input)
@@ -40,34 +37,33 @@ fn cols(input: List(String)) -> List(String) {
 }
 
 fn diags(input: List(String)) -> List(String) {
-  list.map(input, string.to_graphemes)
-  |> list.index_fold(dict.new(), fn(diags, graphemes, row_idx) {
-    list.index_map(graphemes, fn(grapheme, col_idx) {
-      case col_idx == 0 {
-        True -> [#(row_idx, grapheme)]
-        False -> [
-          #(row_idx + col_idx, grapheme),
-          #(row_idx - col_idx, grapheme),
-        ]
-      }
+  let indexed_rows =
+    list.map(input, string.to_graphemes)
+    |> list.map(index_dict)
+
+  let right_shifted =
+    list.index_fold(indexed_rows, dict.new(), fn(diags, indexed_row, row_idx) {
+      shift_keys(indexed_row, row_idx)
+      |> dict.combine(diags, string.append)
     })
-    |> list.flatten()
-    |> dict.from_list()
-    |> dict.combine(diags, string.append)
-  })
-  |> dict.values()
+
+  let left_shifted =
+    list.index_fold(indexed_rows, dict.new(), fn(diags, indexed_row, row_idx) {
+      shift_keys(indexed_row, -row_idx)
+      |> dict.combine(diags, string.append)
+    })
+
+  list.append(dict.values(right_shifted), dict.values(left_shifted))
 }
 
-fn shift_row(row: Dict(Int, String), by: Int) -> Dict(Int, String) {
+fn shift_keys(row: Dict(Int, elems), by: Int) -> Dict(Int, elems) {
   dict.to_list(row)
   |> list.map(pair.map_first(_, int.add(_, by)))
   |> dict.from_list()
 }
 
 fn count_xmas(input: String) -> Int {
-  let count = count_xmas_loop(input, 0, 0)
-  io.debug("found " <> string.inspect(count) <> " in " <> input)
-  count
+  count_xmas_loop(input, 0, 0)
 }
 
 fn count_xmas_loop(input: String, idx: Int, count: Int) -> Int {
