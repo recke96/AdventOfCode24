@@ -1,4 +1,5 @@
 import gleam/dict.{type Dict}
+import gleam/list
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string
@@ -30,12 +31,8 @@ fn parse_loop(
 pub fn pt_1(input: WordSearch) -> Int {
   dict.keys(input)
   |> yielder.from_list()
-  |> yielder.filter(fn(position) {
-    case input |> dict.get(position) {
-      Ok("X") | Ok("M") | Ok("A") | Ok("S") -> True
-      _ -> False
-    }
-  })
+  // Only care for positions that are 'X'
+  |> yielder.filter(prefilter(_, input, ["X"]))
   |> yielder.flat_map(fn(position) {
     use <- yielder.yield(match_xmas_at_dir(input, position, Up))
     use <- yielder.yield(match_xmas_at_dir(input, position, UpRight))
@@ -54,6 +51,8 @@ pub fn pt_1(input: WordSearch) -> Int {
 pub fn pt_2(input: WordSearch) {
   dict.keys(input)
   |> yielder.from_list()
+  // Possible X-MAS' for 'M' and 'S' positions
+  |> yielder.filter(prefilter(_, input, ["M", "S"]))
   |> yielder.filter(is_x_mas_at(input, _))
   |> yielder.length()
 }
@@ -70,6 +69,11 @@ fn shortcircuit(result: Result(a, b), short: c, circuit: fn(a) -> c) -> c {
     Ok(a) -> circuit(a)
     Error(_) -> short
   }
+}
+
+fn prefilter(position: Position, search: WordSearch, in: List(String)) -> Bool {
+  use is <- shortcircuit(search |> dict.get(position), False)
+  list.contains(in, is)
 }
 
 type Direction {
