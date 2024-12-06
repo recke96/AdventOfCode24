@@ -1,75 +1,132 @@
 import gleam/dict.{type Dict}
-import gleam/int
-import gleam/list
-import gleam/pair
+import gleam/result
+import gleam/set.{type Set}
 import gleam/string
+import gleam/yielder
 
-pub fn pt_1(input: String) -> Int {
-  let rows = rows(input)
-  let cols = cols(rows)
-  let diags = diags(rows)
-
-  list.flatten([rows, cols, diags])
-  |> list.fold(0, fn(xmas, row) { xmas + count_xmas(row) })
+pub fn parse(input: String) -> WordSearch {
+  parse_loop(input, Position(0, 0), dict.new())
 }
 
-pub fn pt_2(input: String) {
+fn parse_loop(
+  input: String,
+  position: Position,
+  search: WordSearch,
+) -> WordSearch {
+  let Position(x, y) = position
+  use #(grapheme, rest) <- shortcircuit(string.pop_grapheme(input), search)
+
+  case grapheme {
+    "\n" -> parse_loop(rest, Position(0, y + 1), search)
+    grapheme ->
+      parse_loop(
+        rest,
+        Position(x + 1, y),
+        search |> dict.insert(position, grapheme),
+      )
+  }
+}
+
+pub fn pt_1(input: WordSearch) -> Int {
+  dict.keys(input)
+  |> yielder.from_list()
+  |> yielder.filter(fn(position) {
+    case input |> dict.get(position) {
+      Ok("X") | Ok("M") | Ok("A") | Ok("S") -> True
+      _ -> False
+    }
+  })
+  |> yielder.flat_map(fn(position) {
+    use <- yielder.yield(match_xmas_at_dir(input, position, Up))
+    use <- yielder.yield(match_xmas_at_dir(input, position, UpRight))
+    use <- yielder.yield(match_xmas_at_dir(input, position, Right))
+    use <- yielder.yield(match_xmas_at_dir(input, position, DownRight))
+    use <- yielder.yield(match_xmas_at_dir(input, position, Down))
+    use <- yielder.yield(match_xmas_at_dir(input, position, DownLeft))
+    use <- yielder.yield(match_xmas_at_dir(input, position, Left))
+    use <- yielder.yield(match_xmas_at_dir(input, position, UpLeft))
+    yielder.empty()
+  })
+  |> yielder.fold(set.new(), set.union)
+  |> set.size()
+}
+
+pub fn pt_2(input: WordSearch) {
   todo as "part 2 not implemented"
 }
 
-fn index_dict(input: List(elem)) -> Dict(Int, elem) {
-  list.index_map(input, pair.new)
-  |> list.map(pair.swap)
-  |> dict.from_list()
+pub type Position {
+  Position(x: Int, y: Int)
 }
 
-fn rows(input: String) -> List(String) {
-  string.split(input, on: "\n")
+pub type WordSearch =
+  Dict(Position, String)
+
+fn shortcircuit(result: Result(a, b), short: c, circuit: fn(a) -> c) -> c {
+  case result {
+    Ok(a) -> circuit(a)
+    Error(_) -> short
+  }
 }
 
-fn cols(input: List(String)) -> List(String) {
-  list.map(input, string.to_graphemes)
-  |> list.map(index_dict)
-  |> list.fold(dict.new(), fn(cols, row) {
-    dict.combine(cols, row, string.append)
+type Direction {
+  Up
+  UpRight
+  Right
+  DownRight
+  Down
+  DownLeft
+  Left
+  UpLeft
+}
+
+fn next_pos(current: Position, direction: Direction) -> Position {
+  let Position(x, y) = current
+  case direction {
+    Up -> Position(x, y - 1)
+    UpRight -> Position(x + 1, y - 1)
+    Right -> Position(x + 1, y)
+    DownRight -> Position(x + 1, y + 1)
+    Down -> Position(x, y + 1)
+    DownLeft -> Position(x - 1, y + 1)
+    Left -> Position(x - 1, y)
+    UpLeft -> Position(x - 1, y - 1)
+  }
+}
+
+type Match {
+  Match(at: Position, direction: Direction)
+}
+
+fn string_at(
+  search: WordSearch,
+  position: Position,
+  count: Int,
+  direction: Direction,
+) -> Result(String, Nil) {
+  yielder.unfold(#(0, position), fn(state) {
+    let #(step, current_pos) = state
+    case step < count {
+      True ->
+        yielder.Next(current_pos, #(step + 1, next_pos(current_pos, direction)))
+      False -> yielder.Done
+    }
   })
-  |> dict.values()
+  |> yielder.try_fold("", fn(str, pos) {
+    use grapheme <- result.try(search |> dict.get(pos))
+    Ok(str <> grapheme)
+  })
 }
 
-fn diags(input: List(String)) -> List(String) {
-  let indexed_rows =
-    list.map(input, string.to_graphemes)
-    |> list.map(index_dict)
-
-  let right_shifted =
-    list.index_fold(indexed_rows, dict.new(), fn(diags, indexed_row, row_idx) {
-      shift_keys(indexed_row, row_idx)
-      |> dict.combine(diags, string.append)
-    })
-
-  let left_shifted =
-    list.index_fold(indexed_rows, dict.new(), fn(diags, indexed_row, row_idx) {
-      shift_keys(indexed_row, -row_idx)
-      |> dict.combine(diags, string.append)
-    })
-
-  list.append(dict.values(right_shifted), dict.values(left_shifted))
-}
-
-fn shift_keys(row: Dict(Int, elems), by: Int) -> Dict(Int, elems) {
-  dict.to_list(row)
-  |> list.map(pair.map_first(_, int.add(_, by)))
-  |> dict.from_list()
-}
-
-fn count_xmas(input: String) -> Int {
-  count_xmas_loop(input, 0, 0)
-}
-
-fn count_xmas_loop(input: String, idx: Int, count: Int) -> Int {
-  case string.slice(input, idx, 4) {
-    "" -> count
-    "XMAS" | "SAMX" -> count_xmas_loop(input, idx + 1, count + 1)
-    _ -> count_xmas_loop(input, idx + 1, count)
+fn match_xmas_at_dir(
+  search: WordSearch,
+  at: Position,
+  direction: Direction,
+) -> Set(Match) {
+  let empty = set.new()
+  use str <- shortcircuit(string_at(search, at, 4, direction), empty)
+  case str {
+    "XMAS" -> empty |> set.insert(Match(at, direction))
+    _ -> empty
   }
 }
