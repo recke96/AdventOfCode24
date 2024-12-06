@@ -1,16 +1,25 @@
 import gleam/dict.{type Dict}
-import gleam/io
 import gleam/set.{type Set}
 
-pub fn pt_1(input: String) {
-  let assert #(map, Ok(start)) = map_and_start(input)
-
-  let visited = set.new() |> set.insert(start.at)
-  walk(start, visited, map) |> set.size()
+pub fn parse(input: String) -> #(Map, Result(Guard, Nil)) {
+  map_and_start_loop(input, dict.new(), Position(0, 0), Error(Nil))
 }
 
-pub fn pt_2(input: String) {
-  todo as "part 2 not implemented"
+pub fn pt_1(input: #(Map, Result(Guard, Nil))) -> Int {
+  let assert #(map, Ok(guard)) = input
+
+  walk(guard, set.new(), map) |> set.size()
+}
+
+pub fn pt_2(input: #(Map, Result(Guard, Nil))) -> Int {
+  let assert #(map, Ok(guard)) = input
+
+  walk(guard, set.new(), map)
+  |> set.delete(guard.at)
+  |> set.filter(fn(new_obstacle) {
+    is_in_loop(guard, set.new(), map |> dict.insert(new_obstacle, Obstacle))
+  })
+  |> set.size()
 }
 
 pub type Position {
@@ -57,21 +66,46 @@ pub type Map =
 
 fn walk(current: Guard, visited: Set(Position), map: Map) -> Set(Position) {
   let next_pos = next_pos(current.at, current.facing)
+  let new_visited = visited |> set.insert(current.at)
   case dict.get(map, next_pos) {
-    Ok(Free) ->
-      walk(Guard(..current, at: next_pos), set.insert(visited, next_pos), map)
+    Ok(Free) -> walk(Guard(..current, at: next_pos), new_visited, map)
     Ok(Obstacle) ->
       walk(
         Guard(..current, facing: turn_clockwise(current.facing)),
-        visited,
+        new_visited,
         map,
       )
-    Error(Nil) -> visited
+    Error(Nil) -> new_visited
   }
 }
 
-fn map_and_start(input: String) -> #(Map, Result(Guard, Nil)) {
-  map_and_start_loop(input, dict.new(), Position(0, 0), Error(Nil))
+fn is_in_loop(current: Guard, visited: Set(Guard), map: Map) -> Bool {
+  case visited |> set.contains(current) {
+    // Already visited position with same facing -> loops
+    True -> True
+    False -> {
+      let new_visited = visited |> set.insert(current)
+      let next_pos = next_pos(current.at, current.facing)
+      case map |> dict.get(next_pos) {
+        Ok(Free) ->
+          is_in_loop(
+            // move to next free space
+            Guard(..current, at: next_pos),
+            new_visited,
+            map,
+          )
+        Ok(Obstacle) ->
+          is_in_loop(
+            // turn
+            Guard(..current, facing: turn_clockwise(current.facing)),
+            new_visited,
+            map,
+          )
+        // Out of map, no loop
+        Error(Nil) -> False
+      }
+    }
+  }
 }
 
 fn map_and_start_loop(
