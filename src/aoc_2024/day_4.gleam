@@ -4,6 +4,7 @@ import gleam/result
 import gleam/set.{type Set}
 import gleam/string
 import gleam/yielder
+import utils.{shortcircuit}
 
 pub fn parse(input: String) -> WordSearch {
   parse_loop(input, Position(0, 0), dict.new())
@@ -63,13 +64,6 @@ pub type Position {
 
 pub type WordSearch =
   Dict(Position, String)
-
-fn shortcircuit(result: Result(a, b), short: c, circuit: fn(a) -> c) -> c {
-  case result {
-    Ok(a) -> circuit(a)
-    Error(_) -> short
-  }
-}
 
 fn prefilter(position: Position, search: WordSearch, in: List(String)) -> Bool {
   use is <- shortcircuit(search |> dict.get(position), False)

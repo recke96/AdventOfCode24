@@ -1,5 +1,9 @@
 import gleam/dict.{type Dict}
+import gleam/int
+import gleam/list
+import gleam/result
 import gleam/set.{type Set}
+import utils.{shortcircuit}
 
 pub fn parse(input: String) -> #(Map, Result(Guard, Nil)) {
   map_and_start_loop(input, dict.new(), Position(0, 0), Error(Nil))
@@ -14,10 +18,14 @@ pub fn pt_1(input: #(Map, Result(Guard, Nil))) -> Int {
 pub fn pt_2(input: #(Map, Result(Guard, Nil))) -> Int {
   let assert #(map, Ok(guard)) = input
 
+  let obstacles =
+    map
+    |> dict.filter(fn(_, sym) { sym == Obstacle })
+    |> dict.keys()
   walk(guard, set.new(), map)
   |> set.delete(guard.at)
   |> set.filter(fn(new_obstacle) {
-    is_in_loop(guard, set.new(), map |> dict.insert(new_obstacle, Obstacle))
+    is_in_loop(guard, set.new(), [new_obstacle, ..obstacles])
   })
   |> set.size()
 }
@@ -79,31 +87,71 @@ fn walk(current: Guard, visited: Set(Position), map: Map) -> Set(Position) {
   }
 }
 
-fn is_in_loop(current: Guard, visited: Set(Guard), map: Map) -> Bool {
+fn is_in_loop(
+  current: Guard,
+  visited: Set(Guard),
+  obstacles: List(Position),
+) -> Bool {
   case visited |> set.contains(current) {
     // Already visited position with same facing -> loops
     True -> True
     False -> {
       let new_visited = visited |> set.insert(current)
-      let next_pos = next_pos(current.at, current.facing)
-      case map |> dict.get(next_pos) {
-        Ok(Free) ->
-          is_in_loop(
-            // move to next free space
-            Guard(..current, at: next_pos),
-            new_visited,
-            map,
-          )
-        Ok(Obstacle) ->
-          is_in_loop(
-            // turn
-            Guard(..current, facing: turn_clockwise(current.facing)),
-            new_visited,
-            map,
-          )
-        // Out of map, no loop
-        Error(Nil) -> False
-      }
+      use next_guard <- shortcircuit(
+        to_next_obstacle(current, obstacles),
+        False,
+      )
+
+      is_in_loop(next_guard, new_visited, obstacles)
+    }
+  }
+}
+
+fn to_next_obstacle(
+  current: Guard,
+  obstacles: List(Position),
+) -> Result(Guard, Nil) {
+  let next_facing = turn_clockwise(current.facing)
+  case current.facing {
+    Up -> {
+      use Position(obs_x, obs_y) <- result.try(
+        obstacles
+        |> list.filter(fn(obs) { obs.x == current.at.x && obs.y < current.at.y })
+        |> list.sort(fn(a, b) { int.compare(b.y, a.y) })
+        |> list.first(),
+      )
+
+      Ok(Guard(Position(obs_x, obs_y + 1), next_facing))
+    }
+    Right -> {
+      use Position(obs_x, obs_y) <- result.try(
+        obstacles
+        |> list.filter(fn(obs) { obs.y == current.at.y && obs.x > current.at.x })
+        |> list.sort(fn(a, b) { int.compare(a.x, b.x) })
+        |> list.first(),
+      )
+
+      Ok(Guard(Position(obs_x - 1, obs_y), next_facing))
+    }
+    Down -> {
+      use Position(obs_x, obs_y) <- result.try(
+        obstacles
+        |> list.filter(fn(obs) { obs.x == current.at.x && obs.y > current.at.y })
+        |> list.sort(fn(a, b) { int.compare(a.y, b.y) })
+        |> list.first(),
+      )
+
+      Ok(Guard(Position(obs_x, obs_y - 1), next_facing))
+    }
+    Left -> {
+      use Position(obs_x, obs_y) <- result.try(
+        obstacles
+        |> list.filter(fn(obs) { obs.y == current.at.y && obs.x < current.at.x })
+        |> list.sort(fn(a, b) { int.compare(b.x, a.x) })
+        |> list.first(),
+      )
+
+      Ok(Guard(Position(obs_x + 1, obs_y), next_facing))
     }
   }
 }
