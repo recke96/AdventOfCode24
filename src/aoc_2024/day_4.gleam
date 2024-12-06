@@ -52,7 +52,10 @@ pub fn pt_1(input: WordSearch) -> Int {
 }
 
 pub fn pt_2(input: WordSearch) {
-  todo as "part 2 not implemented"
+  dict.keys(input)
+  |> yielder.from_list()
+  |> yielder.filter(is_x_mas_at(input, _))
+  |> yielder.length()
 }
 
 pub type Position {
@@ -128,5 +131,17 @@ fn match_xmas_at_dir(
   case str {
     "XMAS" -> empty |> set.insert(Match(at, direction))
     _ -> empty
+  }
+}
+
+fn is_x_mas_at(search: WordSearch, at: Position) -> Bool {
+  use str_1 <- shortcircuit(string_at(search, at, 3, DownRight), False)
+
+  let other_start = Position(at.x, at.y + 2)
+  use str_2 <- shortcircuit(string_at(search, other_start, 3, UpRight), False)
+
+  case str_1, str_2 {
+    "MAS", "MAS" | "SAM", "MAS" | "SAM", "SAM" | "MAS", "SAM" -> True
+    _, _ -> False
   }
 }
