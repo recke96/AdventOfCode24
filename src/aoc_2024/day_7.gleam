@@ -37,18 +37,30 @@ pub fn pt_1(input: List(Equation)) {
 }
 
 pub fn pt_2(input: List(Equation)) {
-  todo as "part 2 not implemented"
+  list.filter(input, fn(eq) {
+    find_operators(eq, [Add, Mul, Concat]) |> result.is_ok()
+  })
+  |> list.fold(0, fn(sum, eq) { sum + eq.test_value })
 }
 
 type Operator {
   Add
   Mul
+  Concat
 }
 
 fn apply_op(operator: Operator, a: Int, b: Int) -> Int {
   case operator {
     Add -> a + b
     Mul -> a * b
+    Concat -> {
+      let assert Ok(digits_a) = int.digits(a, 10)
+      let assert Ok(digits_b) = int.digits(b, 10)
+
+      let assert Ok(concat) =
+        list.append(digits_a, digits_b) |> int.undigits(10)
+      concat
+    }
   }
 }
 
@@ -64,7 +76,14 @@ fn find_operators(
         False -> Error(Nil)
       }
     [first, ..remaining] -> {
-      
+      map_to_success(available_ops, find_operators_loop(
+        in.test_value,
+        first,
+        _,
+        remaining,
+        [],
+        available_ops,
+      ))
     }
   }
 }
@@ -75,29 +94,27 @@ fn find_operators_loop(
   current_operator: Operator,
   remaining: List(Int),
   operators: List(Operator),
+  available_ops: List(Operator),
 ) -> Result(List(Operator), Nil) {
   case remaining {
     [] if current_number == target -> Ok(list.reverse(operators))
     [] -> Error(Nil)
     [next, ..rest] -> {
       let acc = apply_op(current_operator, current_number, next)
-      use <- result.lazy_or(
-        find_operators_loop(target, acc, Add, rest, [
-          current_operator,
-          ..operators
-        ]),
-      )
-
-      find_operators_loop(target, acc, Mul, rest, [
-        current_operator,
-        ..operators
-      ])
+      map_to_success(available_ops, find_operators_loop(
+        target,
+        acc,
+        _,
+        rest,
+        [current_operator, ..operators],
+        available_ops,
+      ))
     }
   }
 }
 
 fn map_to_success(list: List(a), fun: fn(a) -> Result(b, c)) -> Result(b, Nil) {
-  list.fold_until(list, Error(Nil), fn(acc, e) {
+  list.fold_until(list, Error(Nil), fn(_, e) {
     case fun(e) {
       Ok(r) -> list.Stop(Ok(r))
       Error(_) -> list.Continue(Error(Nil))
