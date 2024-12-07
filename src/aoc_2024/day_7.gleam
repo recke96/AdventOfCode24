@@ -30,12 +30,11 @@ fn parse_eq(line: String) -> Result(Equation, Nil) {
 }
 
 pub fn pt_1(input: List(Equation)) {
-  let err_case = Equation(292, [11, 6, 16, 20])
-  find_operators(err_case) |> string.inspect() |> io.println()
+  // let err_case = Equation(292, [11, 6, 16, 20])
+  // find_operators(err_case) |> string.inspect() |> io.println()
 
-  42
-  //  list.filter(input, fn(eq) { find_operators(eq) |> result.is_ok() })
-  //  |> list.fold(0, fn(sum, eq) { sum + eq.test_value })
+  list.filter(input, fn(eq) { find_operators(eq) |> result.is_ok() })
+  |> list.fold(0, fn(sum, eq) { sum + eq.test_value })
 }
 
 pub fn pt_2(input: List(Equation)) {
@@ -100,66 +99,18 @@ fn find_operators_loop(
       let acc = apply_op(current_operator, current_number, next)
       let rest_sum = remaining_sum - next
       let rest_product = remaining_product / next
-      io.println(
-        "Got "
-        <> string.inspect(acc)
-        <> " using "
-        <> string.inspect(current_number)
-        <> " "
-        <> string.inspect(current_operator)
-        <> " "
-        <> string.inspect(next)
-        <> ", remaining: "
-        <> string.inspect(rest),
-      )
       result.lazy_or(
         {
-          let Bounds(lower, upper) =
-            bounds(acc, Add, remaining_sum, remaining_product)
-          io.println(
-            "Checking addition "
-            <> string.inspect(target)
-            <> " bounded by "
-            <> string.inspect(lower)
-            <> "/"
-            <> string.inspect(upper),
-          )
-          case target >= lower && target <= upper {
-            True ->
-              find_operators_loop(
-                target,
-                acc,
-                Add,
-                rest,
-                rest_sum,
-                rest_product,
-                [current_operator, ..operators],
-              )
-            False -> Error(Nil)
-          }
+          find_operators_loop(target, acc, Add, rest, rest_sum, rest_product, [
+            current_operator,
+            ..operators
+          ])
         },
         fn() {
-          let Bounds(lower, upper) =
-            bounds(acc, Mul, remaining_sum, remaining_product)
-          io.println(
-            "Checking multiplication bounded by "
-            <> string.inspect(lower)
-            <> "/"
-            <> string.inspect(upper),
-          )
-          case target >= lower && target <= upper {
-            True ->
-              find_operators_loop(
-                target,
-                acc,
-                Mul,
-                rest,
-                rest_sum,
-                rest_product,
-                [current_operator, ..operators],
-              )
-            False -> Error(Nil)
-          }
+          find_operators_loop(target, acc, Mul, rest, rest_sum, rest_product, [
+            current_operator,
+            ..operators
+          ])
         },
       )
     }
