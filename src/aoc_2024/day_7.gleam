@@ -1,5 +1,4 @@
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
@@ -46,6 +45,13 @@ type Operator {
   Mul
 }
 
+fn apply_op(operator: Operator, a: Int, b: Int) -> Int {
+  case operator {
+    Add -> a + b
+    Mul -> a * b
+  }
+}
+
 fn find_operators(in: Equation) -> Result(List(Operator), Nil) {
   case in.numbers {
     [] -> Error(Nil)
@@ -55,30 +61,11 @@ fn find_operators(in: Equation) -> Result(List(Operator), Nil) {
         False -> Error(Nil)
       }
     [first, ..remaining] -> {
-      let remaining_sum = remaining |> list.fold(0, int.add)
-      let remaining_product = remaining |> list.fold(1, int.multiply)
-      result.lazy_or(
-        find_operators_loop(
-          in.test_value,
-          first,
-          Add,
-          remaining,
-          remaining_sum,
-          remaining_product,
-          [],
-        ),
-        fn() {
-          find_operators_loop(
-            in.test_value,
-            first,
-            Mul,
-            remaining,
-            remaining_sum,
-            remaining_product,
-            [],
-          )
-        },
+      use <- result.lazy_or(
+        find_operators_loop(in.test_value, first, Add, remaining, []),
       )
+
+      find_operators_loop(in.test_value, first, Mul, remaining, [])
     }
   }
 }
@@ -88,8 +75,6 @@ fn find_operators_loop(
   current_number: Int,
   current_operator: Operator,
   remaining: List(Int),
-  remaining_sum: Int,
-  remaining_product: Int,
   operators: List(Operator),
 ) -> Result(List(Operator), Nil) {
   case remaining {
@@ -97,45 +82,17 @@ fn find_operators_loop(
     [] -> Error(Nil)
     [next, ..rest] -> {
       let acc = apply_op(current_operator, current_number, next)
-      let rest_sum = remaining_sum - next
-      let rest_product = remaining_product / next
-      result.lazy_or(
-        {
-          find_operators_loop(target, acc, Add, rest, rest_sum, rest_product, [
-            current_operator,
-            ..operators
-          ])
-        },
-        fn() {
-          find_operators_loop(target, acc, Mul, rest, rest_sum, rest_product, [
-            current_operator,
-            ..operators
-          ])
-        },
+      use <- result.lazy_or(
+        find_operators_loop(target, acc, Add, rest, [
+          current_operator,
+          ..operators
+        ]),
       )
+
+      find_operators_loop(target, acc, Mul, rest, [
+        current_operator,
+        ..operators
+      ])
     }
-  }
-}
-
-fn apply_op(operator: Operator, a: Int, b: Int) -> Int {
-  case operator {
-    Add -> a + b
-    Mul -> a * b
-  }
-}
-
-type Bounds {
-  Bounds(lower: Int, upper: Int)
-}
-
-fn bounds(
-  current: Int,
-  op: Operator,
-  remaining_sum: Int,
-  remaining_product: Int,
-) -> Bounds {
-  case op {
-    Add -> Bounds(current + remaining_sum, current + remaining_product)
-    Mul -> Bounds(current * remaining_sum, current * remaining_product)
   }
 }
