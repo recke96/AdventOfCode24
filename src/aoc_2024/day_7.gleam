@@ -32,7 +32,7 @@ pub fn pt_1(input: List(Equation)) {
   // let err_case = Equation(292, [11, 6, 16, 20])
   // find_operators(err_case) |> string.inspect() |> io.println()
 
-  list.filter(input, fn(eq) { find_operators(eq) |> result.is_ok() })
+  list.filter(input, fn(eq) { find_operators(eq, [Add, Mul]) |> result.is_ok() })
   |> list.fold(0, fn(sum, eq) { sum + eq.test_value })
 }
 
@@ -52,7 +52,10 @@ fn apply_op(operator: Operator, a: Int, b: Int) -> Int {
   }
 }
 
-fn find_operators(in: Equation) -> Result(List(Operator), Nil) {
+fn find_operators(
+  in: Equation,
+  available_ops: List(Operator),
+) -> Result(List(Operator), Nil) {
   case in.numbers {
     [] -> Error(Nil)
     [single] ->
@@ -61,11 +64,7 @@ fn find_operators(in: Equation) -> Result(List(Operator), Nil) {
         False -> Error(Nil)
       }
     [first, ..remaining] -> {
-      use <- result.lazy_or(
-        find_operators_loop(in.test_value, first, Add, remaining, []),
-      )
-
-      find_operators_loop(in.test_value, first, Mul, remaining, [])
+      
     }
   }
 }
@@ -95,4 +94,13 @@ fn find_operators_loop(
       ])
     }
   }
+}
+
+fn map_to_success(list: List(a), fun: fn(a) -> Result(b, c)) -> Result(b, Nil) {
+  list.fold_until(list, Error(Nil), fn(acc, e) {
+    case fun(e) {
+      Ok(r) -> list.Stop(Ok(r))
+      Error(_) -> list.Continue(Error(Nil))
+    }
+  })
 }
