@@ -1,10 +1,8 @@
 import gleam/dict
 import gleam/int
-import gleam/io
 import gleam/list
-import gleam/set.{type Set}
+import gleam/set
 import gleam/string
-import gleam/yielder.{type Yielder}
 
 pub type Position {
   Position(x: Int, y: Int)
@@ -62,7 +60,7 @@ pub fn pt_1(input: #(Int, Int, List(Antenna))) {
   |> dict.values()
   |> list.flat_map(anti_nodes)
   |> list.filter(is_on_map(_, width, height))
-  |> list.fold(set.new(), set.insert)
+  |> set.from_list()
   |> set.size()
 }
 
@@ -78,19 +76,14 @@ pub fn pt_2(input: #(Int, Int, List(Antenna))) {
 fn anti_nodes(antennas: List(Antenna)) -> List(Position) {
   list.map(antennas, fn(a) { a.pos })
   |> list.combination_pairs()
-  |> yielder.from_list()
-  |> yielder.flat_map(fn(positions) {
+  |> list.flat_map(fn(positions) {
     let #(a, b) = positions
-    let diff = diff(positions)
+    let diff = diff(a, b)
 
-    use <- yielder.yield(Position(a.x + diff.x, a.y + diff.y))
-    use <- yielder.yield(Position(b.x - diff.x, b.y - diff.y))
-    yielder.empty()
+    [Position(a.x + diff.x, a.y + diff.y), Position(b.x - diff.x, b.y - diff.y)]
   })
-  |> yielder.to_list()
 }
 
-fn diff(posisitons: #(Position, Position)) -> Position {
-  let #(Position(ax, ay), Position(bx, by)) = posisitons
-  Position(ax - bx, ay - by)
+fn diff(a: Position, b: Position) -> Position {
+  Position(a.x - b.x, a.y - b.y)
 }
