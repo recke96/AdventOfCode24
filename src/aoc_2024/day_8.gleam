@@ -58,23 +58,12 @@ fn parse_loop(
 pub fn pt_1(input: #(Int, Int, List(Antenna))) {
   let #(width, height, antennas) = input
 
-  let anti_nodes =
-    list.group(antennas, fn(a) { a.freq })
-    |> dict.map_values(fn(_, antennas) {
-      anti_nodes(antennas) |> list.filter(is_on_map(_, width, height))
-    })
-    |> dict.to_list()
-    |> list.map(fn(pair) {
-      list.fold(pair.1, dict.new(), fn(d, pos) { dict.insert(d, pos, [pair.0]) })
-    })
-    |> list.fold(dict.new(), fn(a, b) { dict.combine(a, b, list.append) })
-
-  anti_nodes
-  |> dict.each(fn(pos, freqs) {
-    io.println(string.inspect(pos) <> ": " <> string.inspect(freqs))
-  })
-
-  anti_nodes |> dict.size()
+  list.group(antennas, fn(a) { a.freq })
+  |> dict.values()
+  |> list.flat_map(anti_nodes)
+  |> list.filter(is_on_map(_, width, height))
+  |> list.fold(set.new(), set.insert)
+  |> set.size()
 }
 
 fn is_on_map(pos: Position, width: Int, height: Int) -> Bool {
