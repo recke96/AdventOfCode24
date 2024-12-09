@@ -6,6 +6,7 @@ gleam_stdlib = ">= 0.34.0 and < 2.0.0"
 gladvent = ">= 2.0.2 and < 3.0.0"
 gleam_yielder = ">= 1.1.0 and < 2.0.0"
 gleam_regexp = ">= 1.0.0 and < 2.0.0"
+gleam_deque = ">= 1.0.0 and < 2.0.0"
 
 [gladvent.2024.1]
 pt_1 = 2192892
@@ -34,3 +35,6 @@ pt_2 = 1957
 [gladvent.2024.7]
 pt_1 = 1298300076754
 pt_2 = 248427118972289
+
+[gladvent.2024.9]
+pt_1 = 6367087064415
