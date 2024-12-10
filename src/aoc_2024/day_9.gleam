@@ -1,21 +1,15 @@
+import gleam/bool
 import gleam/deque.{type Deque}
 import gleam/int
-import gleam/result
+import gleam/list
+import gleam/order
+import gleam/pair
 import gleam/string
-import gleam/yielder.{type Yielder}
-import utils.{shortcircuit}
 
 pub fn pt_1(input: String) {
-  parse_disk_map(input)
-  |> yielder.fold(deque.new(), deque.push_back)
-  |> compact()
-  |> yielder.index()
-  |> yielder.fold(0, fn(checksum, indexed_block) {
-    case indexed_block.0 {
-      Data(id) -> checksum + { indexed_block.1 * id }
-      Free -> checksum
-    }
-  })
+  parse(input)
+  |> compact_1()
+  |> checksum()
 }
 
 pub fn pt_2(input: String) {
@@ -23,59 +17,131 @@ pub fn pt_2(input: String) {
 }
 
 pub type Block {
-  Data(id: Int)
-  Free
+  Free(size: Int)
+  Data(size: Int, id: Int)
 }
 
-fn parse_disk_map(disk_map: String) -> Yielder(Block) {
-  yielder.unfold(#(True, 0, disk_map), fn(state) {
-    let #(is_data, id, current) = state
-    use #(count_str, rest) <- shortcircuit(
-      string.pop_grapheme(current),
-      yielder.Done,
-    )
-    let assert Ok(count) = int.parse(count_str)
+fn split_block(block: Block, at: Int) -> Result(List(Block), Nil) {
+  use <- bool.guard(at < 0, Error(Nil))
 
-    case is_data {
-      True ->
-        yielder.Next(yielder.repeat(Data(id)) |> yielder.take(count), #(
-          False,
-          id + 1,
-          rest,
-        ))
-      False ->
-        yielder.Next(yielder.repeat(Free) |> yielder.take(count), #(
-          True,
-          id,
-          rest,
-        ))
+  case int.compare(block.size, at), block {
+    order.Eq, Free(size) | order.Lt, Free(size) -> Ok([Free(size)])
+    order.Eq, Data(size, id) | order.Lt, Data(size, id) -> Ok([Data(size, id)])
+    order.Gt, Free(size) -> Ok([Free(at), Free(size - at)])
+    order.Gt, Data(size, id) -> Ok([Data(at, id), Data(size - at, id)])
+  }
+}
+
+fn parse(graphemes: String) -> Deque(Block) {
+  graphemes |> string.to_graphemes() |> parse_loop(True, 0, deque.new())
+}
+
+fn parse_loop(
+  graphemes: List(String),
+  is_data: Bool,
+  id: Int,
+  blocks: Deque(Block),
+) -> Deque(Block) {
+  case graphemes {
+    [] -> blocks
+    [g, ..rest] -> {
+      let assert Ok(count) = int.parse(g)
+      let #(block, next_id) = case is_data {
+        True -> #(Data(count, id), id + 1)
+        False -> #(Free(count), id)
+      }
+      parse_loop(
+        rest,
+        bool.negate(is_data),
+        next_id,
+        blocks |> deque.push_back(block),
+      )
     }
-  })
-  |> yielder.flatten()
+  }
 }
 
-fn compact(file: Deque(Block)) -> Yielder(Block) {
-  yielder.unfold(file, fn(f) {
-    use #(front, rest) <- shortcircuit(deque.pop_front(f), yielder.Done)
+fn compact_1(disk: Deque(Block)) -> Deque(Block) {
+  case deque.pop_front(disk) {
+    Error(Nil) -> disk
+    Ok(#(front, rest)) -> compact_1_loop(deque.new(), front, rest)
+  }
+}
 
-    case front {
-      Data(_) -> yielder.Next(front, rest)
-      Free -> {
-        use #(data, rest_2) <- shortcircuit(
-          pop_back_to_data(rest),
-          yielder.Done,
-        )
-        yielder.Next(data, rest_2)
+fn compact_1_loop(
+  front: Deque(Block),
+  current: Block,
+  back: Deque(Block),
+) -> Deque(Block) {
+  case current {
+    Data(_, _) ->
+      case deque.pop_front(back) {
+        Error(Nil) -> deque.push_back(front, current)
+        Ok(#(next, rest)) ->
+          compact_1_loop(deque.push_back(front, current), next, rest)
+      }
+    Free(space) -> {
+      let #(new_front, new_back) = fill_free_space(front, space, back)
+      case deque.pop_front(new_back) {
+        Error(Nil) -> new_front
+        Ok(#(next, rest)) -> compact_1_loop(new_front, next, rest)
       }
     }
-  })
+  }
 }
 
-fn pop_back_to_data(file: Deque(Block)) -> Result(#(Block, Deque(Block)), Nil) {
-  use #(back, rest) <- result.try(deque.pop_back(file))
+fn fill_free_space(
+  front: Deque(Block),
+  free_space: Int,
+  back: Deque(Block),
+) -> #(Deque(Block), Deque(Block)) {
+  use <- bool.guard(free_space <= 0, #(front, back))
 
-  case back {
-    Data(_) -> Ok(#(back, rest))
-    Free -> pop_back_to_data(rest)
+  case deque.pop_back(back) {
+    Error(Nil) -> #(front, back)
+    Ok(#(moving, rest)) ->
+      case moving {
+        Data(size, _) if size <= free_space ->
+          fill_free_space(
+            deque.push_back(front, moving),
+            free_space - size,
+            rest,
+          )
+        Data(_, _) ->
+          case split_block(moving, free_space) {
+            Error(Nil) -> #(front, back)
+            Ok([fitting, splitted]) -> #(
+              deque.push_back(front, fitting),
+              deque.push_back(rest, splitted),
+            )
+            Ok(_) -> panic as "Should not happen because guards"
+          }
+        Free(_) -> fill_free_space(front, free_space, rest)
+      }
+  }
+}
+
+fn checksum(disk: Deque(Block)) -> Int {
+  case deque.pop_front(disk) {
+    Error(Nil) -> 0
+    Ok(#(first, rest)) -> checksum_loop(first, rest, 0, 0)
+  }
+}
+
+fn checksum_loop(block: Block, disk: Deque(Block), sum: Int, offset: Int) -> Int {
+  let #(partial_sum, next_offset) = checksum_block(offset, block)
+  case deque.pop_front(disk) {
+    Error(Nil) -> sum + partial_sum
+    Ok(#(next, rest)) ->
+      checksum_loop(next, rest, sum + partial_sum, next_offset)
+  }
+}
+
+fn checksum_block(offset: Int, block: Block) -> #(Int, Int) {
+  case block {
+    Free(_) -> #(0, offset)
+    Data(size, id) ->
+      list.repeat(id, size)
+      |> list.index_fold(0, fn(sum, id, idx) { sum + { id * { offset + idx } } })
+      |> pair.new(offset + size)
   }
 }
