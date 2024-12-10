@@ -5,16 +5,22 @@ import gleam/result
 import gleam/set.{type Set}
 import gleam/string
 
-pub fn pt_1(input: String) {
-  let #(map, heads) =
-    parse_loop(input |> string.to_graphemes(), Position(0, 0), dict.new(), [])
+pub fn parse(input: String) -> #(TopoMap, List(Position)) {
+  parse_loop(input |> string.to_graphemes(), Position(0, 0), dict.new(), [])
+}
+
+pub fn pt_1(input: #(TopoMap, List(Position))) {
+  let #(map, heads) = input
 
   list.map(heads, trail_score(_, map))
   |> list.fold(0, int.add)
 }
 
-pub fn pt_2(input: String) {
-  todo as "part 2 not implemented"
+pub fn pt_2(input: #(TopoMap, List(Position))) {
+  let #(map, heads) = input
+
+  list.map(heads, trail_rating(_, map))
+  |> list.fold(0, int.add)
 }
 
 pub type Position {
@@ -79,6 +85,38 @@ fn trail_score_dfs(
       |> list.filter(fn(next) { next.1 == height + 1 })
       |> list.map(fn(next) { trail_score_dfs(next.0, next.1, tops, map) })
       |> list.fold(tops, set.union)
+    }
+  }
+}
+
+fn trail_rating(head: Position, map: TopoMap) -> Int {
+  trail_rating_dfs(head, 0, set.new(), map)
+}
+
+fn trail_rating_dfs(
+  current: Position,
+  height: Int,
+  tops: Set(Position),
+  map: TopoMap,
+) -> Int {
+  case height {
+    9 -> 1
+    _ -> {
+      let Position(x, y) = current
+      let nexts = [
+        Position(x, y - 1),
+        Position(x + 1, y),
+        Position(x, y + 1),
+        Position(x - 1, y),
+      ]
+
+      list.filter_map(nexts, fn(next) {
+        dict.get(map, next)
+        |> result.map(fn(height) { #(next, height) })
+      })
+      |> list.filter(fn(next) { next.1 == height + 1 })
+      |> list.map(fn(next) { trail_rating_dfs(next.0, next.1, tops, map) })
+      |> list.fold(0, int.add)
     }
   }
 }
